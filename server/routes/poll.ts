@@ -11,6 +11,8 @@ export interface PollState {
   submissions: number;
   participants: number;
   deadline: number | null; // epoch ms
+  correctAnswers?: boolean[];
+  hasVoted?: boolean; // indicates if this specific student has voted
 }
 
 interface HistoryItem {
@@ -104,7 +106,7 @@ export class PollManager {
       this.deadline = now() + duration * 1000;
 
       this.clearTick();
-      this.tick = setInterval(() => this.onTick(), 250);
+      this.tick = setInterval(() => this.onTick(), 2000); // Changed from 250ms to 2000ms (2 seconds)
       this.emitState();
     });
 
@@ -172,10 +174,9 @@ export class PollManager {
     if (this.phase !== "active" || this.deadline == null) return;
     if (now() >= this.deadline) {
       this.finishQuestion();
-    } else {
-      // low-overhead live updates about remaining time
-      this.emitState();
     }
+    // Remove the constant emitState() call - only emit when deadline is reached
+    // This avoids spamming clients with updates every 2 seconds
   }
 
   private finishQuestion() {
@@ -214,9 +215,36 @@ export class PollManager {
   }
 
   private emitState(target?: Socket) {
-    const payload = this.getState();
-    if (target) target.emit("poll:update", payload);
-    else this.io.emit("poll:update", payload);
+    const basePayload = this.getState();
+    const timestamp = Date.now();
+    
+    if (target) {
+      // For individual socket, add whether this specific student has voted
+      const hasVoted = this.answers.has(target.id);
+      const payload = { ...basePayload, hasVoted, timestamp };
+      
+      // Single emit to avoid duplicate events
+      target.emit("poll:update", payload);
+      
+      console.log(`📤 State sent to ${target.id}:`, {
+        phase: basePayload.phase,
+        hasVoted
+      });
+    } else {
+      // Send personalized state to each client (with hasVoted flag)
+      this.io.sockets.sockets.forEach((socket) => {
+        const hasVoted = this.answers.has(socket.id);
+        const personalPayload = { ...basePayload, hasVoted, timestamp };
+        
+        // Single emit per client to avoid duplicates
+        socket.emit("poll:update", personalPayload);
+      });
+      
+      console.log(`📊 State broadcast to ${this.io.sockets.sockets.size} clients:`, {
+        phase: basePayload.phase,
+        participants: this.participants.size
+      });
+    }
   }
 
   private emitParticipants(target?: Socket) {

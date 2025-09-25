@@ -9,31 +9,27 @@ export function getSocket(): Socket {
     
     socket = io("/", {
       path: "/socket.io",
-      // FORCE polling only for Render - no websocket upgrade
-      transports: isDevelopment ? ["websocket"] : ["polling"],
+      // Use polling for production, websocket for development
+      transports: isDevelopment ? ["websocket", "polling"] : ["polling"],
       autoConnect: true,
       reconnection: true,
-      reconnectionAttempts: 10,
-      reconnectionDelay: 2000,
+      reconnectionAttempts: 5, // Reduced from 10
+      reconnectionDelay: 1000, // Reduced from 2000
       reconnectionDelayMax: 5000,
-      // Aggressive settings for stable connection
-      timeout: 30000,
-      forceNew: true, // Force new connection each time
+      timeout: 20000, // Reduced from 30000
+      // Remove problematic settings that cause infinite loops
       upgrade: false, // Disable upgrade to prevent connection switching
       rememberUpgrade: false,
     });
 
-    // Aggressive debugging and connection handling
+    // Basic connection logging without aggressive handling
     socket.on('connect', () => {
       console.log('🟢 Socket connected:', socket.id);
     });
     
     socket.on('disconnect', (reason) => {
       console.log('🔴 Socket disconnected:', reason);
-      // Force reconnect on any disconnect
-      if (reason === 'io server disconnect') {
-        socket.connect();
-      }
+      // Don't force reconnect - let socket.io handle it automatically
     });
     
     socket.on('reconnect', (attemptNumber) => {
@@ -45,6 +41,15 @@ export function getSocket(): Socket {
     });
   }
   return socket;
+}
+
+// Add cleanup function to prevent memory leaks
+export function cleanupSocket() {
+  if (socket) {
+    socket.removeAllListeners();
+    socket.disconnect();
+    socket = null;
+  }
 }
 
 export type PollPhase = "idle" | "active" | "results";

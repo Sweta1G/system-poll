@@ -35,30 +35,18 @@ import("socket.io").then(({ Server }) => {
         credentials: true,
         methods: ["GET", "POST"]
       },
-      // FORCE polling only to prevent connection switching issues on Render
+      // Use polling only for production stability
       transports: ["polling"],
       allowEIO3: true,
-      // Aggressive timeouts for stable connections
-      pingTimeout: 120000, // 2 minutes
-      pingInterval: 30000,  // 30 seconds
-      upgradeTimeout: 30000,
+      // Reasonable timeouts to prevent connection issues
+      pingTimeout: 60000,   // 1 minute (reduced from 2 minutes)
+      pingInterval: 25000,  // 25 seconds (reduced from 30)
+      upgradeTimeout: 10000, // 10 seconds (reduced from 30)
       // Disable upgrades to prevent connection fluctuations
       allowUpgrades: false,
-      // Enable session stickiness
-      cookie: {
-        name: "io",
-        httpOnly: false,
-        sameSite: "lax",
-        secure: false
-      },
     });
     
-    // Force single instance behavior
-    io.engine.generateId = (req) => {
-      return req.headers['x-forwarded-for'] || req.connection.remoteAddress || Math.random().toString(36).substring(7);
-    };
-    
-    // Aggressive connection logging
+    // Basic connection logging (removed custom ID generator)
     io.on('connection', (socket) => {
       console.log(`🟢 Client connected: ${socket.id} via ${socket.conn.transport.name} from ${socket.handshake.address}`);
       

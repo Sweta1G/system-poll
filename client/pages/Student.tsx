@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+﻿import { useEffect, useState, useRef } from 'react';
 import { getSocket } from '../lib/socket';
 import AppLayout from '../components/AppLayout';
 import ChatWidget from '../components/ui/ChatWidget';
@@ -14,9 +14,12 @@ export default function Student() {
   const [timeLeft, setTimeLeft] = useState<number>(0);
   // Store the complete poll state from server for exact matching with teacher
   const [serverPollState, setServerPollState] = useState<any>(null);
+  
+  // Use a single socket instance throughout the component
+  const socketRef = useRef(getSocket());
 
   useEffect(() => {
-    const socket = getSocket();
+    const socket = socketRef.current;
     
     const handlePollUpdate = (state: any) => {
       // Basic debug logging (reduced from aggressive logging)
@@ -113,7 +116,7 @@ export default function Student() {
     e.preventDefault();
     
     if (studentName.trim()) {
-      const socket = getSocket();
+      const socket = socketRef.current;
       const nameToSend = studentName.trim();
       console.log('Student joining:', nameToSend);
       socket.emit('student:join', nameToSend);
@@ -125,7 +128,7 @@ export default function Student() {
   const handleOptionSelect = (index: number) => {
     if (selectedOption === null && currentPoll) {
       setSelectedOption(index);
-      const socket = getSocket();
+      const socket = socketRef.current;
       socket.emit('student:submit', { optionIndex: index });
       // Set hasVoted immediately for instant UI feedback
       setHasVoted(true);

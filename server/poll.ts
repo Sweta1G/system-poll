@@ -113,7 +113,7 @@ export class PollManager {
       this.deadline = now() + duration * 1000;
 
       this.clearTick();
-      this.tick = setInterval(() => this.onTick(), 250);
+      this.tick = setInterval(() => this.onTick(), 2000); // Changed from 250ms to 2000ms (2 seconds)
       this.emitState();
     });
 
@@ -185,10 +185,9 @@ export class PollManager {
     if (this.phase !== "active" || this.deadline == null) return;
     if (now() >= this.deadline) {
       this.finishQuestion();
-    } else {
-      // low-overhead live updates about remaining time
-      this.emitState();
     }
+    // Remove the constant emitState() call - only emit when deadline is reached
+    // This avoids spamming clients with updates every 2 seconds
   }
 
   private finishQuestion() {
