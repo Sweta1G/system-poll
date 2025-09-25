@@ -19,18 +19,11 @@ export default function Student() {
     const socket = getSocket();
     
     const handlePollUpdate = (state: any) => {
-      // 🔥 AGGRESSIVE DEBUG LOGGING FOR DEPLOYMENT
-      console.log('🔥 STUDENT POLL UPDATE:', {
+      // Basic debug logging (reduced from aggressive logging)
+      console.log('Poll update:', {
         phase: state.phase,
         hasVoted: state.hasVoted,
-        question: state.question,
-        votes: state.votes,
-        submissions: state.submissions,
-        deadline: state.deadline,
-        currentTime: Date.now(),
-        timeLeft: state.deadline ? Math.max(0, Math.ceil((state.deadline - Date.now()) / 1000)) : 0,
-        hostname: window.location.hostname,
-        timestamp: new Date().toISOString()
+        submissions: state.submissions
       });
       
       // Store the complete server state for exact teacher matching
@@ -98,19 +91,13 @@ export default function Student() {
       setPollResult(null);
     };
 
-    // LISTEN FOR MULTIPLE EVENT TYPES TO CATCH ALL UPDATES
+    // Listen to the single poll update event
     socket.on('poll:update', handlePollUpdate);
-    socket.on('poll:state', handlePollUpdate);
-    socket.on('poll:sync', handlePollUpdate);
-    socket.on('poll:personal', handlePollUpdate);
     socket.on('student:kicked', handleKicked);
 
     return () => {
-      // CLEANUP ALL EVENT LISTENERS
+      // Cleanup event listeners
       socket.off('poll:update', handlePollUpdate);
-      socket.off('poll:state', handlePollUpdate);
-      socket.off('poll:sync', handlePollUpdate);
-      socket.off('poll:personal', handlePollUpdate);
       socket.off('student:kicked', handleKicked);
     };
   }, []);
@@ -124,22 +111,14 @@ export default function Student() {
 
   const handleJoinSession = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Form submitted');
-    console.log('studentName state:', studentName);
-    console.log('studentName length:', studentName.length);
-    console.log('trimmed name:', studentName.trim());
-    console.log('trimmed length:', studentName.trim().length);
     
     if (studentName.trim()) {
       const socket = getSocket();
       const nameToSend = studentName.trim();
-      console.log('About to emit student:join with:', nameToSend);
-      console.log('Type of nameToSend:', typeof nameToSend);
+      console.log('Student joining:', nameToSend);
       socket.emit('student:join', nameToSend);
       // Set joined state immediately after emitting
       setIsJoined(true);
-    } else {
-      console.log('Name is empty after trim');
     }
   };
 
@@ -207,7 +186,6 @@ export default function Student() {
                     type="text"
                     value={studentName}
                     onChange={(e) => {
-                      console.log('Input changing to:', e.target.value);
                       setStudentName(e.target.value);
                     }}
                     placeholder="Rahul Bajaj"

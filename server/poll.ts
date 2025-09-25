@@ -236,39 +236,26 @@ export class PollManager {
       const hasVoted = this.answers.has(target.id);
       const payload = { ...basePayload, hasVoted, timestamp };
       
-      // TRIPLE EMIT TO ENSURE DELIVERY
+      // Single emit to avoid duplicate events
       target.emit("poll:update", payload);
-      target.emit("poll:state", payload);
-      target.emit("poll:sync", payload);
       
-      console.log(`📤 Individual state sent to ${target.id}:`, {
-        hasVoted,
+      console.log(`📤 State sent to ${target.id}:`, {
         phase: basePayload.phase,
-        votes: basePayload.votes,
-        timestamp: new Date(timestamp).toISOString()
+        hasVoted
       });
     } else {
-      // BROADCAST TO ALL CLIENTS WITH MULTIPLE EVENTS
-      this.io.emit("poll:update", basePayload);
-      this.io.emit("poll:state", basePayload);
-      this.io.emit("poll:sync", { ...basePayload, timestamp });
-      
-      // ALSO SEND INDIVIDUAL STATES
+      // Send personalized state to each client (with hasVoted flag)
       this.io.sockets.sockets.forEach((socket) => {
         const hasVoted = this.answers.has(socket.id);
         const personalPayload = { ...basePayload, hasVoted, timestamp };
         
-        // MULTIPLE EMIT ATTEMPTS
+        // Single emit per client to avoid duplicates
         socket.emit("poll:update", personalPayload);
-        socket.emit("poll:personal", personalPayload);
-        socket.emit("poll:sync", personalPayload);
       });
       
-      console.log(`📊 BROADCAST state to ${this.io.sockets.sockets.size} clients:`, {
+      console.log(`📊 State broadcast to ${this.io.sockets.sockets.size} clients:`, {
         phase: basePayload.phase,
-        votes: basePayload.votes,
-        participants: this.participants.size,
-        timestamp: new Date(timestamp).toISOString()
+        participants: this.participants.size
       });
     }
   }
